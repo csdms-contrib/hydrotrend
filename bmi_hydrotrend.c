@@ -107,7 +107,7 @@ get_start_time(void * self, double *time)
 static int
 get_end_time(void * self, double *time)
 { /* Implement this: Set end time */
-    *time  = ((state*)self)->n_days;
+    *time  = ((HydrotrendData*)self)->n_days;
     return BMI_SUCCESS;
 }
 
@@ -115,7 +115,7 @@ get_end_time(void * self, double *time)
 static int
 get_current_time(void * self, double *time)
 { /* Implement this: Set current time */
-    *time = ((state*)self)->day;
+    *time = ((HydrotrendData*)self)->day;
     return BMI_SUCCESS;
 }
 
@@ -137,15 +137,12 @@ get_time_units(void * self, char *units)
 
 
 static int
-initialize(const char * file, void **handle)
+initialize(void *self, const char * file)
 { /* Implement this: Create and initialize a model handle */
-  if (handle) {
-    state * self = NULL;
+  if (self) {
     char *in_dir = NULL;
     char *prefix = NULL;
     char *out_dir = NULL;
-
-    *handle = NULL;
 
     if (file && file[0] != '\0') {
       FILE * fp = fopen (file, "r");
@@ -162,6 +159,7 @@ initialize(const char * file, void **handle)
         if (fgets (args, 2048, fp)==args) {
           out_dir = _str_strip (strdup (args));
         }
+        fclose(fp);
       }
       else
           return BMI_FAILURE;
@@ -173,14 +171,11 @@ initialize(const char * file, void **handle)
     }
 
     if (in_dir && prefix && out_dir) {
-      self = hydro_initialize (in_dir, prefix, out_dir);
+      hydro_initialize((HydrotrendData*)self, in_dir, prefix, out_dir);
     }
-
-    if (self)
-      *handle = (void*)self;
-    else
-      return BMI_FAILURE;
   }
+  else
+    return BMI_FAILURE;
 
   return BMI_SUCCESS;
 }
@@ -201,7 +196,7 @@ update(void * self)
     if (get_current_time(self, &day) == BMI_FAILURE)
         return BMI_FAILURE;
 
-    hydro_run((state*)self, day + 1.);
+    hydro_run((HydrotrendData*)self, day + 1.);
 
     return BMI_SUCCESS;
 }
@@ -239,44 +234,7 @@ update_until(void * self, double then)
 static int
 finalize(void * self)
 { /* Implement this: Clean up */
-    hydro_finalize ((state*)self);
-    return BMI_SUCCESS;
-}
-
-
-static int
-get_grid_type(void *self, int id, char *type)
-{
-    if (id == 0) {
-        strncpy(type, "scalar", 2048);
-    } else {
-        type[0] = '\0'; return BMI_FAILURE;
-    }
-    return BMI_SUCCESS;
-}
-
-
-static int
-get_grid_rank(void *self, int id, int *rank)
-{
-    if (id == 0) {
-        *rank = 0;
-    } else {
-        *rank = -1; return BMI_FAILURE;
-    }
-    return BMI_SUCCESS;
-}
-
-
-static int
-get_grid_size(void *self, int id, int *size)
-{
-    int rank;
-    if (get_grid_rank(self, id, &rank) == BMI_FAILURE)
-        return BMI_FAILURE;
-
-    *size = 1;
-
+    hydro_finalize ((HydrotrendData*)self);
     return BMI_SUCCESS;
 }
 
@@ -284,6 +242,7 @@ get_grid_size(void *self, int id, int *size)
 static int
 get_var_grid(void *self, const char *name, int *grid)
 {
+    return BMI_FAILURE;
     if (strcmp(name, "atmosphere_bottom_air__domain_mean_of_temperature") == 0) {
         *grid = 0;
     } else if (strcmp(name, "channel_exit_water_sediment~suspended__mass_flow_rate") == 0) {
@@ -412,18 +371,12 @@ get_var_itemsize(void *self, const char *name, int *itemsize)
 static int
 get_var_nbytes(void *self, const char *name, int *nbytes)
 {
-    int id, size, itemsize;
-
-    if (get_var_grid(self, name, &id) == BMI_FAILURE)
-        return BMI_FAILURE;
-
-    if (get_grid_size(self, id, &size) == BMI_FAILURE)
-        return BMI_FAILURE;
+    int itemsize;
 
     if (get_var_itemsize(self, name, &itemsize) == BMI_FAILURE)
         return BMI_FAILURE;
 
-    *nbytes = itemsize * size;
+    *nbytes = itemsize;
 
     return BMI_SUCCESS;
 }
@@ -432,7 +385,7 @@ get_var_nbytes(void *self, const char *name, int *nbytes)
 static int
 get_var_location(void *self, const char *name, char *loc)
 {
-    strncpy(loc, "grid", BMI_MAX_VAR_NAME);
+    strncpy(loc, "none", BMI_MAX_VAR_NAME);
     return BMI_SUCCESS;
 }
 
@@ -565,24 +518,25 @@ set_value_at_indices (void *self, const char *name, int * inds, int len,
 BMI_Model*
 register_bmi_hydrotrend(BMI_Model *model)
 {
-    model->self = NULL;
+    model->self = (void*)new_data();
 
     model->initialize = initialize;
     model->update = update;
     model->update_until = update_until;
-    model->update_frac = update_frac;
+    // model->update_frac = update_frac;
     model->finalize = finalize;
-    model->run_model = NULL;
+    // model->run_model = NULL;
 
     model->get_component_name = get_component_name;
-    model->get_input_var_name_count = get_input_var_name_count;
-    model->get_output_var_name_count = get_output_var_name_count;
+    model->get_input_item_count = get_input_var_name_count;
+    model->get_output_item_count = get_output_var_name_count;
     model->get_input_var_names = get_input_var_names;
     model->get_output_var_names = get_output_var_names;
 
     model->get_var_grid = get_var_grid;
     model->get_var_type = get_var_type;
     model->get_var_units = get_var_units;
+    model->get_var_itemsize = get_var_itemsize;
     model->get_var_nbytes = get_var_nbytes;
     model->get_var_location = get_var_location;
     model->get_current_time = get_current_time;
@@ -596,12 +550,14 @@ register_bmi_hydrotrend(BMI_Model *model)
     model->get_value_at_indices = get_value_at_indices;
 
     model->set_value = set_value;
-    model->set_value_ptr = NULL;
+    // model->set_value_ptr = NULL;
     model->set_value_at_indices = set_value_at_indices;
 
-    model->get_grid_rank = get_grid_rank;
-    model->get_grid_size = get_grid_size;
-    model->get_grid_type = get_grid_type;
+    model->get_grid_rank = NULL;
+    model->get_grid_size = NULL;
+    model->get_grid_type = NULL;
+
+    model->get_grid_node_count = NULL;
 
     return model;
 }
