@@ -54,10 +54,10 @@ main (int argc, char **argv)
 
     register_bmi_hydrotrend(model);
 
-    hydro_initialize(model->self, in_dir, in_prefix, out_dir);
+    hydro_initialize(model->data, in_dir, in_prefix, out_dir);
 
-    model->update_until(model->self, 10.5);
-    model->finalize(model->self);
+    model->update_until(model, 10.5);
+    model->finalize(model);
 
     free(model);
   }
