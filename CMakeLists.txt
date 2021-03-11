@@ -89,7 +89,7 @@ add_library(bmi_hydrotrend SHARED ${hydrotrend_lib_SRCS} )
 set_target_properties(
   bmi_hydrotrend PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS true
-  C_VISIBILITY_PRESET visible
+  C_VISIBILITY_PRESET default
 )
 
 install(
