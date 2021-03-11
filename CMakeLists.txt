@@ -84,10 +84,22 @@ set(
 
 ########### BMI ###########
 
-add_library(bmi_hydrotrend ${hydrotrend_lib_SRCS})
 add_library(bmi_hydrotrend-static STATIC ${hydrotrend_lib_SRCS} )
-install(TARGETS bmi_hydrotrend DESTINATION lib)
-install(TARGETS bmi_hydrotrend-static DESTINATION lib)
+add_library(bmi_hydrotrend SHARED ${hydrotrend_lib_SRCS} )
+set_target_properties(
+  bmi_hydrotrend PROPERTIES
+  WINDOWS_EXPORT_ALL_SYMBOLS true
+  C_VISIBILITY_PRESET default
+)
+
+install(
+  TARGETS bmi_hydrotrend bmi_hydrotrend-static
+  EXPORT libbmi_hydrotrend
+  RUNTIME DESTINATION bin
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 install(FILES bmi.h bmi_hydrotrend.h DESTINATION include/hydrotrend)
 
 ########### hydrotrend main program ###############
